@@ -115,6 +115,8 @@ AFRAME.registerComponent('vieweractions', {
     this.yaw.rotation.y = THREE.Math.degToRad(rotation.y);
     this.yaw.add(this.pitch);
 
+    this.currentMat = null;
+
     // Iterates through entity tree of scene for all objects with standard actions component attached to construct a control tree
     this.parseChildrenForControlTree = function(root, controlTreeBranch) {
     	var childArray = root.children;
@@ -215,7 +217,9 @@ AFRAME.registerComponent('vieweractions', {
   	if(this.data.isControllable) {
   		this.data.enabled = true;
   	}
-  	//this.el.setAttribute("light", {"type": "point", "distance" : 0})
+  	//this.el.setAttribute("light", {"type": "point", "distance" : 5, "color": "blue" })
+    //this.currentMat = this.el.getAttribute("material");
+    //this.el.setAttribute("material", "shader: flat");
   },
 
   /**
@@ -224,6 +228,7 @@ AFRAME.registerComponent('vieweractions', {
   removeFocus: function() {
   	this.data.enabled = false;
   	//this.el.removeAttribute("light");
+    //this.el.setAttribute("material", this.currentMat);
   },
 
   /*******************************************************************
