@@ -115,20 +115,10 @@ AFRAME.registerComponent('vieweractions', {
     this.yaw.rotation.y = THREE.Math.degToRad(rotation.y);
     this.yaw.add(this.pitch);
 
-    this.currentMat = null;
+    //useful incase visual feedback of targeted object is change to material
+    //this.currentMat = null;
 
-    // Iterates through entity tree of scene for all objects with standard actions component attached to construct a control tree
-    this.parseChildrenForControlTree = function(root, controlTreeBranch) {
-    	var childArray = root.children;
-	  	for(var i = 0; i < childArray.length; i++) {
-			if(childArray[i].getAttribute("vieweractions") != null && !childArray[i].getAttribute("vieweractions").isCameraRig) {
-				controlTreeBranch.push({entity: childArray[i], children: []});
-				that.parseChildrenForControlTree(childArray[i], controlTreeBranch[controlTreeBranch.length - 1].children);
-			}
-		}
-    }
-
-    // If this entity is the camera than use as the master for exchanging control between entities
+    // If this entity is the camera than use as the master for exchanging control between entities and construction of control tree
     if(this.data.isCameraRig) {
     	this.controlTree = [];
     	this.treeTracker = [0];
@@ -136,14 +126,32 @@ AFRAME.registerComponent('vieweractions', {
       // Function to parse initial scene structure when loaded to create starting control tree
     	this.constructControlTree = function() {
     		that.parseChildrenForControlTree(that.el.sceneEl, that.controlTree);
-			console.log(that.controlTree);
-      // Start listening for new controllable entities that get added at runtime to add to control tree
-			that.el.sceneEl.addEventListener("newActionComponent", function(e) {
-				if(!that.appendToControlTree(e.detail.newEl, that.el.sceneEl, that.controlTree)) {
-					console.log("control tree update failed");
-				}
-			});
-    	}
+			  console.log(that.controlTree);
+
+        // Start listening for new controllable entities that get added at runtime to add to control tree
+        that.el.sceneEl.addEventListener("newActionComponent", that.callAppendToControlTree);
+
+        // Start listening for controllable entities that get removed at runtime to remove from control tree
+        that.el.sceneEl.addEventListener("removeActionComponent", that.callRemoveFromControlTree);
+      };
+
+      // Iterates through entity tree of scene for all objects with standard actions component attached to construct a control tree
+      this.parseChildrenForControlTree = function(root, controlTreeBranch) {
+        var childArray = root.children;
+        for(var i = 0; i < childArray.length; i++) {
+          if(childArray[i].getAttribute("vieweractions") != null && !childArray[i].getAttribute("vieweractions").isCameraRig) {
+            controlTreeBranch.push({entity: childArray[i], children: []});
+            that.parseChildrenForControlTree(childArray[i], controlTreeBranch[controlTreeBranch.length - 1].children);
+          }
+        }
+      };
+
+      // Support method to act as callback function and call append function with error check
+      this.callAppendToControlTree = function(e) {
+        if(!that.appendToControlTree(e.detail.newEl, that.el.sceneEl, that.controlTree)) {
+          console.log("control tree append update failed");
+        }
+      };
 
       // Recursively find which entity the newly added entity is a child of and add to that branch in the control tree
     	this.appendToControlTree = function(newEl, root, controlTreeBranch) {
@@ -162,9 +170,30 @@ AFRAME.registerComponent('vieweractions', {
     			}
     			return posFound;
     		}
+    	};
 
-    	}
+      this.callRemoveFromControlTree = function(e) {
+        if(!that.removeFromControlTree(e.detail.remEl, that.controlTree)) {
+          console.log("control tree remove update failed");
+        }
+      };
 
+      this.removeFromControlTree = function(remEl, controlTreeBranch) {
+        var i = 0;
+        var posFound = false;
+        while(i < controlTreeBranch.length && !posFound) {
+          if(remEl.isEqualNode(controlTreeBranch[i].entity)) {
+            controlTreeBranch.splice(i, 1);
+            this.switchToCameraControl();
+            return true;
+          } else {
+            posFound = that.removeFromControlTree(remEl, controlTreeBranch[i].children);
+          }
+        }
+        return posFound;
+      }
+
+      // Add event listener to construct control tree once entire initial scene is loaded
     	this.el.sceneEl.addEventListener("loaded", this.constructControlTree);
     } 
     else {
@@ -207,6 +236,7 @@ AFRAME.registerComponent('vieweractions', {
   	else {
   		this.el.sceneEl.removeEventListener("acquireControl", this.acquireControl);
   		this.el.sceneEl.removeEventListener("removeControl", this.removeControl);
+      this.el.sceneEl.emit("removeActionComponent", {remEl: this.el});
   	}
   },
 
@@ -427,6 +457,16 @@ AFRAME.registerComponent('vieweractions', {
 	  		this.prevTargetControlChildPressed = false;
 	  	}
 	}
+  },
+
+  switchToCameraControl: function() {
+    //if(this.currTarget) {
+    //  this.currTarget.entity.components.vieweractions.removeFocus();
+    //}
+    this.currTarget = null;
+    this.controllingTarget = false;
+    this.data.enabled = true;
+    this.treeTracker = [0];
   },
 
   /*******************************************************************
