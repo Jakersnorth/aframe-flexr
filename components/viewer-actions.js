@@ -165,6 +165,8 @@ AFRAME.registerComponent('vieweractions', {
 
       // Function to parse initial scene structure when loaded to create starting control tree
     	this.constructControlTree = function() {
+        document.querySelector('[camera]').removeAttribute('wasd-controls');
+
     		that.parseChildrenForControlTree(that.el.sceneEl, that.controlTree);
 			  console.log(that.controlTree);
 
@@ -234,7 +236,6 @@ AFRAME.registerComponent('vieweractions', {
       }
 
       this.trackKeyDown = function(event) {
-        console.log("New key down: " + event.keyCode);
         that.keyPresses[event.keyCode] = 1;
       }
 
@@ -320,17 +321,10 @@ AFRAME.registerComponent('vieweractions', {
    */
 
   isVelocityActive: function () {
-    if (!this.data.enabled || !this.isConnected()) return false;
+    if (!this.data.enabled) return false;
 
-    const joystick0 = this.getJoystick(0);
-    //const inputX = this.getButton(ControllerActions[m_left]) || this.getButton(ControllerActions.MOVE_RIGHT) || joystick0.x ||
-    //    this.getKeyState(KeyboardActions.MOVE_LEFT) || this.getKeyState(KeyboardActions.MOVE_RIGHT);
     const inputX = this.getAction("MOVE_LEFT") || this.getAction("MOVE_RIGHT");
-    //const inputY = this.getButton(ControllerActions.MOVE_FORWARD) || this.getButton(ControllerActions.MOVE_BACKWARD) || joystick0.y ||
-    //    this.getKeyState(KeyboardActions.MOVE_FORWARD) || this.getKeyState(KeyboardActions.MOVE_BACKWARD);
     const inputY = this.getAction("MOVE_FORWARD") || this.getAction("MOVE_BACKWARD");
-    //const inputZ = this.getButton(ControllerActions.MOVE_UP) || this.getButton(ControllerActions.MOVE_DOWN) ||
-    //    this.getKeyState(KeyboardActions.MOVE_UP) || this.getKeyState(KeyboardActions.MOVE_DOWN);
     const inputZ = this.getAction("MOVE_UP") || this.getAction("MOVE_DOWN");
 
     return Math.abs(inputX) > JOYSTICK_EPS || Math.abs(inputY) > JOYSTICK_EPS || Math.abs(inputZ) > JOYSTICK_EPS;
@@ -342,22 +336,14 @@ AFRAME.registerComponent('vieweractions', {
   	const yaw = this.yaw;
     const pitch = this.pitch;
   	const data = this.data;
-    const joystick0 = this.getJoystick(0),
-    dVelocity = new THREE.Vector3();
+
+    const dVelocity = new THREE.Vector3();
 
     //retrieve current inputs for each directional control
-    let m_left = this.getButton(ControllerActions.MOVE_LEFT) || this.getKeyState(KeyboardActions.MOVE_LEFT);
-    let m_right = this.getButton(ControllerActions.MOVE_RIGHT) || this.getKeyState(KeyboardActions.MOVE_RIGHT);
     let inputX = this.getAction("MOVE_LEFT") ? -1 : (this.getAction("MOVE_RIGHT") ? 1 : 0);
-    inputX = Math.abs(joystick0.x) > JOYSTICK_EPS ? joystick0.x : inputX;
 
-    let m_forward = this.getButton(ControllerActions.MOVE_FORWARD) || this.getKeyState(KeyboardActions.MOVE_FORWARD);
-    let m_backward = this.getButton(ControllerActions.MOVE_BACKWARD) || this.getKeyState(KeyboardActions.MOVE_BACKWARD);
     let inputY = this.getAction("MOVE_FORWARD") ? -1 : (this.getAction("MOVE_BACKWARD") ? 1 : 0);
-    inputY = Math.abs(joystick0.y) > JOYSTICK_EPS ? joystick0.y : inputY;
-    
-    let m_up = this.getButton(ControllerActions.MOVE_UP) || this.getKeyState(KeyboardActions.MOVE_UP);
-    let m_down = this.getButton(ControllerActions.MOVE_DOWN) || this.getKeyState(KeyboardActions.MOVE_DOWN);
+
     let inputZ = this.getAction("MOVE_UP") ? 1 : (this.getAction("MOVE_DOWN") ? -1 : 0);
 
     //calculate correct movement direction based on current forward facing direction
@@ -382,12 +368,11 @@ AFRAME.registerComponent('vieweractions', {
    */
 
   isRotationActive: function () {
-    if (!this.data.enabled || !this.isConnected()) return false;
+    if (!this.data.enabled) return false;
 
-    const joystick1 = this.getJoystick(1);
-    var vertActive = this.getButton(ControllerActions.LOOK_UP) || this.getButton(ControllerActions.LOOK_DOWN) || this.getKeyState(KeyboardActions.LOOK_UP) || this.getKeyState(KeyboardActions.LOOK_DOWN);
-    var horzActive = this.getButton(ControllerActions.LOOK_LEFT) || this.getButton(ControllerActions.LOOK_RIGHT) || this.getKeyState(KeyboardActions.LOOK_LEFT) || this.getKeyState(KeyboardActions.LOOK_RIGHT);
-    return Math.abs(joystick1.x) > JOYSTICK_EPS || Math.abs(joystick1.y) > JOYSTICK_EPS || vertActive || horzActive;
+    var vertActive = this.getAction("LOOK_UP") || this.getAction("LOOK_DOWN");
+    var horzActive = this.getAction("LOOK_LEFT") || this.getAction("LOOK_RIGHT");
+    return vertActive || horzActive;
   },
 
   updateRotation: function (dt) {
@@ -398,16 +383,16 @@ AFRAME.registerComponent('vieweractions', {
     const pitch = this.pitch;
 
     var vertState = 0;
-    if(this.getButton(ControllerActions.LOOK_UP) || this.getKeyState(KeyboardActions.LOOK_UP)) {
+    if(this.getAction("LOOK_UP")) {
     	vertState = -1;
-    } else if (this.getButton(ControllerActions.LOOK_DOWN) || this.getKeyState(KeyboardActions.LOOK_DOWN)) {
+    } else if (this.getAction("LOOK_DOWN")) {
     	vertState = 1;
     }
 
     var horzState = 0;
-    if(this.getButton(ControllerActions.LOOK_RIGHT) || this.getKeyState(KeyboardActions.LOOK_RIGHT)) {
+    if(this.getAction("LOOK_RIGHT")) {
     	horzState = 1;
-    } else if (this.getButton(ControllerActions.LOOK_LEFT) || this.getKeyState(KeyboardActions.LOOK_LEFT)) {
+    } else if (this.getAction("LOOK_LEFT")) {
     	horzState = -1;
     }
 
@@ -433,9 +418,9 @@ AFRAME.registerComponent('vieweractions', {
 
   // Checks for input to change current target at same level of control tree
   updateTargetControl: function() {
-  	if(this.isConnected()) {
+  	//if(this.isConnected()) {
   		//if currently controlling camera, switch to first entity in control tree
-	  	if(!this.prevTargetControlPressed && (this.getButton(ControllerActions.CONTROL_TARGET) || this.getKeyState(KeyboardActions.CONTROL_TARGET)) && !this.controllingTarget) {
+	  	if(!this.prevTargetControlPressed && (this.getAction("CONTROL_TARGET")) && !this.controllingTarget) {
 		  	this.prevTargetControlPressed = true;
 		  	//make sure there are objects besides the camera to control
 	  		if(this.controlTree.length > 0) {
@@ -452,7 +437,7 @@ AFRAME.registerComponent('vieweractions', {
 	  		}
 	  	}
 	  	//switch control from one entity in control tree to next at same level
-	  	else if (!this.prevTargetControlPressed && (this.getButton(ControllerActions.CONTROL_TARGET) || this.getKeyState(KeyboardActions.CONTROL_TARGET))  && this.controllingTarget) {
+	  	else if (!this.prevTargetControlPressed && (this.getAction("CONTROL_TARGET"))  && this.controllingTarget) {
 	  		//remove control from previous controlled entity
 	  		if(this.currTarget) {
 	  			this.currTarget.entity.components.vieweractions.removeFocus();
@@ -491,16 +476,16 @@ AFRAME.registerComponent('vieweractions', {
 	  		}
 	  	}
 	  	// Detect end of input, prevents multiple control transfers in a single input
-	  	else if(this.prevTargetControlPressed && !(this.getButton(ControllerActions.CONTROL_TARGET) || this.getKeyState(KeyboardActions.CONTROL_TARGET)) ) {
+	  	else if(this.prevTargetControlPressed && !(this.getAction("CONTROL_TARGET"))) {
 	  		this.prevTargetControlPressed = false;
 	  	}
-  	}
+  	//}
   },
 
   // Checks for input to change control to first child entity of currently focused entity
   updateTargetControlChild: function() {
-	if(this.isConnected()) {
-		if(!this.prevTargetControlChildPressed && (this.getButton(ControllerActions.CONTROL_TARGET_CHILD) || this.getKeyState(KeyboardActions.CONTROL_TARGET_CHILD)) && this.controllingTarget) {
+	//if(this.isConnected()) {
+		if(!this.prevTargetControlChildPressed && (this.getAction("CONTROL_TARGET_CHILD")) && this.controllingTarget) {
 			this.prevTargetControlChildPressed = true;
 			let targetEntity = this.controlTree[this.treeTracker[0]];
 	  		for(var i = 1; i < this.treeTracker.length - 1; i++) {
@@ -518,10 +503,10 @@ AFRAME.registerComponent('vieweractions', {
 	  		}
 
 		}
-		else if(this.prevTargetControlChildPressed && !(this.getButton(ControllerActions.CONTROL_TARGET_CHILD) || this.getKeyState(KeyboardActions.CONTROL_TARGET_CHILD))) {
+		else if(this.prevTargetControlChildPressed && !(this.getAction("CONTROL_TARGET_CHILD"))) {
 	  		this.prevTargetControlChildPressed = false;
 	  	}
-	}
+	//}
   },
 
   switchToCameraControl: function() {
