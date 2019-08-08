@@ -38,21 +38,21 @@ var GamepadButton = {
 	VENDOR: 16,
 };
 
-var Actions = {
-	LOOK_UP: GamepadButton.FACE_4,
-	LOOK_DOWN: GamepadButton.FACE_1,
-	LOOK_LEFT: GamepadButton.FACE_3,
-	LOOK_RIGHT: GamepadButton.FACE_2,
+var ControllerActions = {
+	'LOOK_UP': GamepadButton.FACE_4,
+	'LOOK_DOWN': GamepadButton.FACE_1,
+	'LOOK_LEFT': GamepadButton.FACE_3,
+	'LOOK_RIGHT': GamepadButton.FACE_2,
 
-	MOVE_FORWARD: GamepadButton.DPAD_UP,
-	MOVE_BACKWARD: GamepadButton.DPAD_DOWN,
-	MOVE_LEFT: GamepadButton.DPAD_LEFT,
-	MOVE_RIGHT: GamepadButton.DPAD_RIGHT,
-  MOVE_UP: GamepadButton.L_SHOULDER_1,
-  MOVE_DOWN: GamepadButton.R_SHOULDER_1,
+	'MOVE_FORWARD': GamepadButton.DPAD_UP,
+	'MOVE_BACKWARD': GamepadButton.DPAD_DOWN,
+	'MOVE_LEFT': GamepadButton.DPAD_LEFT,
+	'MOVE_RIGHT': GamepadButton.DPAD_RIGHT,
+  'MOVE_UP': GamepadButton.L_SHOULDER_1,
+  'MOVE_DOWN': GamepadButton.R_SHOULDER_1,
 
-  CONTROL_TARGET: GamepadButton.SELECT,
-  CONTROL_TARGET_CHILD: GamepadButton.START
+  'CONTROL_TARGET': GamepadButton.SELECT,
+  'CONTROL_TARGET_CHILD': GamepadButton.START
 };
 
 var KeyboardCodes = {
@@ -74,20 +74,20 @@ var KeyboardCodes = {
 }
 
 var KeyboardActions = {
-  LOOK_UP: KeyboardCodes.UP_ARROW,
-  LOOK_DOWN: KeyboardCodes.DOWN_ARROW,
-  LOOK_LEFT: KeyboardCodes.LEFT_ARROW,
-  LOOK_RIGHT: KeyboardCodes.RIGHT_ARROW,
+  'LOOK_UP' : KeyboardCodes.UP_ARROW,
+  'LOOK_DOWN': KeyboardCodes.DOWN_ARROW,
+  'LOOK_LEFT': KeyboardCodes.LEFT_ARROW,
+  'LOOK_RIGHT': KeyboardCodes.RIGHT_ARROW,
 
-  MOVE_FORWARD: KeyboardCodes.W_KEY,
-  MOVE_BACKWARD: KeyboardCodes.S_KEY,
-  MOVE_LEFT: KeyboardCodes.A_KEY,
-  MOVE_RIGHT: KeyboardCodes.D_KEY,
-  MOVE_UP: KeyboardCodes.Q_KEY,
-  MOVE_DOWN: KeyboardCodes.E_KEY,
+  'MOVE_FORWARD': KeyboardCodes.W_KEY,
+  'MOVE_BACKWARD': KeyboardCodes.S_KEY,
+  'MOVE_LEFT': KeyboardCodes.A_KEY,
+  'MOVE_RIGHT': KeyboardCodes.D_KEY,
+  'MOVE_UP': KeyboardCodes.Q_KEY,
+  'MOVE_DOWN': KeyboardCodes.E_KEY,
 
-  CONTROL_TARGET: KeyboardCodes.C_KEY,
-  CONTROL_TARGET_CHILD: KeyboardCodes.V_KEY
+  'CONTROL_TARGET': KeyboardCodes.C_KEY,
+  'CONTROL_TARGET_CHILD': KeyboardCodes.V_KEY
 }
 
 // Sets minimum sensitivity of joystick inputs (currently not used)
@@ -100,7 +100,7 @@ AFRAME.registerComponent('vieweractions', {
    */
 
   GamepadButton: GamepadButton,
-  Actions: Actions,
+  ControllerActions: ControllerActions,
   KeyboardCodes: KeyboardCodes,
   KeyboardActions: KeyboardActions,
 
@@ -323,12 +323,15 @@ AFRAME.registerComponent('vieweractions', {
     if (!this.data.enabled || !this.isConnected()) return false;
 
     const joystick0 = this.getJoystick(0);
-    const inputX = this.getButton(Actions.MOVE_LEFT) || this.getButton(Actions.MOVE_RIGHT) || joystick0.x ||
-        this.getKeyState(KeyboardActions.MOVE_LEFT) || this.getKeyState(KeyboardActions.MOVE_RIGHT);
-    const inputY = this.getButton(Actions.MOVE_FORWARD) || this.getButton(Actions.MOVE_BACKWARD) || joystick0.y ||
-        this.getKeyState(KeyboardActions.MOVE_FORWARD) || this.getKeyState(KeyboardActions.MOVE_BACKWARD);
-    const inputZ = this.getButton(Actions.MOVE_UP) || this.getButton(Actions.MOVE_DOWN) ||
-        this.getKeyState(KeyboardActions.MOVE_UP) || this.getKeyState(KeyboardActions.MOVE_DOWN);
+    //const inputX = this.getButton(ControllerActions[m_left]) || this.getButton(ControllerActions.MOVE_RIGHT) || joystick0.x ||
+    //    this.getKeyState(KeyboardActions.MOVE_LEFT) || this.getKeyState(KeyboardActions.MOVE_RIGHT);
+    const inputX = this.getAction("MOVE_LEFT") || this.getAction("MOVE_RIGHT");
+    //const inputY = this.getButton(ControllerActions.MOVE_FORWARD) || this.getButton(ControllerActions.MOVE_BACKWARD) || joystick0.y ||
+    //    this.getKeyState(KeyboardActions.MOVE_FORWARD) || this.getKeyState(KeyboardActions.MOVE_BACKWARD);
+    const inputY = this.getAction("MOVE_FORWARD") || this.getAction("MOVE_BACKWARD");
+    //const inputZ = this.getButton(ControllerActions.MOVE_UP) || this.getButton(ControllerActions.MOVE_DOWN) ||
+    //    this.getKeyState(KeyboardActions.MOVE_UP) || this.getKeyState(KeyboardActions.MOVE_DOWN);
+    const inputZ = this.getAction("MOVE_UP") || this.getAction("MOVE_DOWN");
 
     return Math.abs(inputX) > JOYSTICK_EPS || Math.abs(inputY) > JOYSTICK_EPS || Math.abs(inputZ) > JOYSTICK_EPS;
   },
@@ -343,19 +346,19 @@ AFRAME.registerComponent('vieweractions', {
     dVelocity = new THREE.Vector3();
 
     //retrieve current inputs for each directional control
-    let m_left = this.getButton(Actions.MOVE_LEFT) || this.getKeyState(KeyboardActions.MOVE_LEFT);
-    let m_right = this.getButton(Actions.MOVE_RIGHT) || this.getKeyState(KeyboardActions.MOVE_RIGHT);
-    let inputX = m_left ? -1 : (m_right ? 1 : 0);
+    let m_left = this.getButton(ControllerActions.MOVE_LEFT) || this.getKeyState(KeyboardActions.MOVE_LEFT);
+    let m_right = this.getButton(ControllerActions.MOVE_RIGHT) || this.getKeyState(KeyboardActions.MOVE_RIGHT);
+    let inputX = this.getAction("MOVE_LEFT") ? -1 : (this.getAction("MOVE_RIGHT") ? 1 : 0);
     inputX = Math.abs(joystick0.x) > JOYSTICK_EPS ? joystick0.x : inputX;
 
-    let m_forward = this.getButton(Actions.MOVE_FORWARD) || this.getKeyState(KeyboardActions.MOVE_FORWARD);
-    let m_backward = this.getButton(Actions.MOVE_BACKWARD) || this.getKeyState(KeyboardActions.MOVE_BACKWARD);
-    let inputY = m_forward ? -1 : (m_backward ? 1 : 0);
+    let m_forward = this.getButton(ControllerActions.MOVE_FORWARD) || this.getKeyState(KeyboardActions.MOVE_FORWARD);
+    let m_backward = this.getButton(ControllerActions.MOVE_BACKWARD) || this.getKeyState(KeyboardActions.MOVE_BACKWARD);
+    let inputY = this.getAction("MOVE_FORWARD") ? -1 : (this.getAction("MOVE_BACKWARD") ? 1 : 0);
     inputY = Math.abs(joystick0.y) > JOYSTICK_EPS ? joystick0.y : inputY;
     
-    let m_up = this.getButton(Actions.MOVE_UP) || this.getKeyState(KeyboardActions.MOVE_UP);
-    let m_down = this.getButton(Actions.MOVE_DOWN) || this.getKeyState(KeyboardActions.MOVE_DOWN);
-    let inputZ = m_up ? 1 : (m_down ? -1 : 0);
+    let m_up = this.getButton(ControllerActions.MOVE_UP) || this.getKeyState(KeyboardActions.MOVE_UP);
+    let m_down = this.getButton(ControllerActions.MOVE_DOWN) || this.getKeyState(KeyboardActions.MOVE_DOWN);
+    let inputZ = this.getAction("MOVE_UP") ? 1 : (this.getAction("MOVE_DOWN") ? -1 : 0);
 
     //calculate correct movement direction based on current forward facing direction
     dVelocity.x = inputY * Math.sin(yaw.rotation.y);
@@ -382,8 +385,8 @@ AFRAME.registerComponent('vieweractions', {
     if (!this.data.enabled || !this.isConnected()) return false;
 
     const joystick1 = this.getJoystick(1);
-    var vertActive = this.getButton(Actions.LOOK_UP) || this.getButton(Actions.LOOK_DOWN);
-    var horzActive = this.getButton(Actions.LOOK_LEFT) || this.getButton(Actions.LOOK_RIGHT)
+    var vertActive = this.getButton(ControllerActions.LOOK_UP) || this.getButton(ControllerActions.LOOK_DOWN) || this.getKeyState(KeyboardActions.LOOK_UP) || this.getKeyState(KeyboardActions.LOOK_DOWN);
+    var horzActive = this.getButton(ControllerActions.LOOK_LEFT) || this.getButton(ControllerActions.LOOK_RIGHT) || this.getKeyState(KeyboardActions.LOOK_LEFT) || this.getKeyState(KeyboardActions.LOOK_RIGHT);
     return Math.abs(joystick1.x) > JOYSTICK_EPS || Math.abs(joystick1.y) > JOYSTICK_EPS || vertActive || horzActive;
   },
 
@@ -395,16 +398,16 @@ AFRAME.registerComponent('vieweractions', {
     const pitch = this.pitch;
 
     var vertState = 0;
-    if(this.getButton(Actions.LOOK_UP)) {
+    if(this.getButton(ControllerActions.LOOK_UP) || this.getKeyState(KeyboardActions.LOOK_UP)) {
     	vertState = -1;
-    } else if (this.getButton(Actions.LOOK_DOWN)) {
+    } else if (this.getButton(ControllerActions.LOOK_DOWN) || this.getKeyState(KeyboardActions.LOOK_DOWN)) {
     	vertState = 1;
     }
 
     var horzState = 0;
-    if(this.getButton(Actions.LOOK_RIGHT)) {
+    if(this.getButton(ControllerActions.LOOK_RIGHT) || this.getKeyState(KeyboardActions.LOOK_RIGHT)) {
     	horzState = 1;
-    } else if (this.getButton(Actions.LOOK_LEFT)) {
+    } else if (this.getButton(ControllerActions.LOOK_LEFT) || this.getKeyState(KeyboardActions.LOOK_LEFT)) {
     	horzState = -1;
     }
 
@@ -432,7 +435,7 @@ AFRAME.registerComponent('vieweractions', {
   updateTargetControl: function() {
   	if(this.isConnected()) {
   		//if currently controlling camera, switch to first entity in control tree
-	  	if(!this.prevTargetControlPressed && (this.getButton(Actions.CONTROL_TARGET) || this.getKeyState(KeyboardActions.CONTROL_TARGET)) && !this.controllingTarget) {
+	  	if(!this.prevTargetControlPressed && (this.getButton(ControllerActions.CONTROL_TARGET) || this.getKeyState(KeyboardActions.CONTROL_TARGET)) && !this.controllingTarget) {
 		  	this.prevTargetControlPressed = true;
 		  	//make sure there are objects besides the camera to control
 	  		if(this.controlTree.length > 0) {
@@ -449,7 +452,7 @@ AFRAME.registerComponent('vieweractions', {
 	  		}
 	  	}
 	  	//switch control from one entity in control tree to next at same level
-	  	else if (!this.prevTargetControlPressed && (this.getButton(Actions.CONTROL_TARGET) || this.getKeyState(KeyboardActions.CONTROL_TARGET))  && this.controllingTarget) {
+	  	else if (!this.prevTargetControlPressed && (this.getButton(ControllerActions.CONTROL_TARGET) || this.getKeyState(KeyboardActions.CONTROL_TARGET))  && this.controllingTarget) {
 	  		//remove control from previous controlled entity
 	  		if(this.currTarget) {
 	  			this.currTarget.entity.components.vieweractions.removeFocus();
@@ -488,7 +491,7 @@ AFRAME.registerComponent('vieweractions', {
 	  		}
 	  	}
 	  	// Detect end of input, prevents multiple control transfers in a single input
-	  	else if(this.prevTargetControlPressed && !(this.getButton(Actions.CONTROL_TARGET) || this.getKeyState(KeyboardActions.CONTROL_TARGET)) ) {
+	  	else if(this.prevTargetControlPressed && !(this.getButton(ControllerActions.CONTROL_TARGET) || this.getKeyState(KeyboardActions.CONTROL_TARGET)) ) {
 	  		this.prevTargetControlPressed = false;
 	  	}
   	}
@@ -497,7 +500,7 @@ AFRAME.registerComponent('vieweractions', {
   // Checks for input to change control to first child entity of currently focused entity
   updateTargetControlChild: function() {
 	if(this.isConnected()) {
-		if(!this.prevTargetControlChildPressed && (this.getButton(Actions.CONTROL_TARGET_CHILD) || this.getKeyState(KeyboardActions.CONTROL_TARGET_CHILD)) && this.controllingTarget) {
+		if(!this.prevTargetControlChildPressed && (this.getButton(ControllerActions.CONTROL_TARGET_CHILD) || this.getKeyState(KeyboardActions.CONTROL_TARGET_CHILD)) && this.controllingTarget) {
 			this.prevTargetControlChildPressed = true;
 			let targetEntity = this.controlTree[this.treeTracker[0]];
 	  		for(var i = 1; i < this.treeTracker.length - 1; i++) {
@@ -515,7 +518,7 @@ AFRAME.registerComponent('vieweractions', {
 	  		}
 
 		}
-		else if(this.prevTargetControlChildPressed && !(this.getButton(Actions.CONTROL_TARGET_CHILD) || this.getKeyState(KeyboardActions.CONTROL_TARGET_CHILD))) {
+		else if(this.prevTargetControlChildPressed && !(this.getButton(ControllerActions.CONTROL_TARGET_CHILD) || this.getKeyState(KeyboardActions.CONTROL_TARGET_CHILD))) {
 	  		this.prevTargetControlChildPressed = false;
 	  	}
 	}
@@ -653,6 +656,14 @@ AFRAME.registerComponent('vieweractions', {
     } else {
       return this.cameraRigRef.components.vieweractions.getKeyState(index);
     }
+  },
+
+  getAction: function(action) {
+    let actionState = this.getKeyState(KeyboardActions[action]);
+    if(this.isConnected()) {
+      actionState = actionState || this.getButton(ControllerActions[action])
+    }
+    return actionState;
   },
 
 
