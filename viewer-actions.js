@@ -1,5 +1,3 @@
-
- 
 /**
  * Standardized accessible VR controls for A-Frame using the Gamepad API for browsers
  *
@@ -316,10 +314,10 @@ AFRAME.registerComponent('vieweractions', {
       cRef.components.vieweractions.data.enabled = false;
     }
     this.cameraRigRef = cRef;
-    this.el.emit('raycaster-intersected');
-    //this.el.setAttribute("light", {"type": "point", "distance" : 5, "color": "blue" })
-    //this.currentMat = this.el.getAttribute("material");
-    //this.el.setAttribute("material", "shader: flat");
+
+    // Insert code here for any user feedback when an object is targeted
+
+    // ----------------------------------------------
   },
 
   /**
@@ -328,9 +326,10 @@ AFRAME.registerComponent('vieweractions', {
   removeFocus: function() {
     this.data.enabled = false;
     this.cameraRigRef.components.vieweractions.data.enabled = true;
-    this.el.emit('raycaster-intersected-cleared');
-    //this.el.removeAttribute("light");
-    //this.el.setAttribute("material", this.currentMat);
+    
+    // Insert code here fo undoing any user feedback when an object is no longer targeted
+
+    // ---------------------------------------------
   },
 
   /*******************************************************************
@@ -560,7 +559,9 @@ AFRAME.registerComponent('vieweractions', {
   updateTargetInteract: function() {
     if(!this.prevTargetInteractPressed && (this.getAction("INTERACT_TARGET")) && this.controllingTarget) {
       this.prevTargetInteractPressed = true;
-      this.currTarget.entity.emit("click");
+      // Insert code here for what happens when a user interacts with an object (such as simulating a click event)
+
+      // ---------------------
     }
 
     else if(this.prevTargetInteractPressed && !(this.getAction("INTERACT_TARGET"))) {
