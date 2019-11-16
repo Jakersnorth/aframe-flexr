@@ -1,3 +1,5 @@
+
+ 
 /**
  * Standardized accessible VR controls for A-Frame using the Gamepad API for browsers
  *
@@ -17,42 +19,44 @@
  * https://developer.mozilla.org/en-US/docs/Web/API/Gamepad_API/Using_the_Gamepad_API
  */
 var GamepadButton = {
-	FACE_1: 0,
-	FACE_2: 1,
-	FACE_3: 2,
-	FACE_4: 3,
+  FACE_1: 0,
+  FACE_2: 1,
+  FACE_3: 2,
+  FACE_4: 3,
 
-	L_SHOULDER_1: 4,
-	R_SHOULDER_1: 5,
-	L_SHOULDER_2: 6,
-	R_SHOULDER_2: 7,
+  L_SHOULDER_1: 4,
+  R_SHOULDER_1: 5,
+  L_SHOULDER_2: 6,
+  R_SHOULDER_2: 7,
 
-	SELECT: 8,
-	START: 9,
+  SELECT: 8,
+  START: 9,
 
-	DPAD_UP: 12,
-	DPAD_DOWN: 13,
-	DPAD_LEFT: 14,
-	DPAD_RIGHT: 15,
+  DPAD_UP: 12,
+  DPAD_DOWN: 13,
+  DPAD_LEFT: 14,
+  DPAD_RIGHT: 15,
 
-	VENDOR: 16,
+  VENDOR: 16,
 };
 
 var ControllerActions = {
-	'LOOK_UP': GamepadButton.FACE_4,
-	'LOOK_DOWN': GamepadButton.FACE_1,
-	'LOOK_LEFT': GamepadButton.FACE_3,
-	'LOOK_RIGHT': GamepadButton.FACE_2,
+  'LOOK_UP': GamepadButton.FACE_4,
+  'LOOK_DOWN': GamepadButton.FACE_1,
+  'LOOK_LEFT': GamepadButton.FACE_3,
+  'LOOK_RIGHT': GamepadButton.FACE_2,
 
-	'MOVE_FORWARD': GamepadButton.DPAD_UP,
-	'MOVE_BACKWARD': GamepadButton.DPAD_DOWN,
-	'MOVE_LEFT': GamepadButton.DPAD_LEFT,
-	'MOVE_RIGHT': GamepadButton.DPAD_RIGHT,
+  'MOVE_FORWARD': GamepadButton.DPAD_UP,
+  'MOVE_BACKWARD': GamepadButton.DPAD_DOWN,
+  'MOVE_LEFT': GamepadButton.DPAD_LEFT,
+  'MOVE_RIGHT': GamepadButton.DPAD_RIGHT,
   'MOVE_UP': GamepadButton.L_SHOULDER_1,
   'MOVE_DOWN': GamepadButton.R_SHOULDER_1,
 
   'CONTROL_TARGET': GamepadButton.SELECT,
-  'CONTROL_TARGET_CHILD': GamepadButton.START
+  'CONTROL_TARGET_CHILD': GamepadButton.START,
+
+  'INTERACT_TARGET': GamepadButton.R_SHOULDER_2
 };
 
 var KeyboardCodes = {
@@ -70,7 +74,9 @@ var KeyboardCodes = {
   E_KEY: 69,
 
   C_KEY: 67,
-  V_KEY: 86
+  V_KEY: 86,
+
+  SPACE_KEY: 32
 }
 
 var KeyboardActions = {
@@ -87,7 +93,9 @@ var KeyboardActions = {
   'MOVE_DOWN': KeyboardCodes.E_KEY,
 
   'CONTROL_TARGET': KeyboardCodes.C_KEY,
-  'CONTROL_TARGET_CHILD': KeyboardCodes.V_KEY
+  'CONTROL_TARGET_CHILD': KeyboardCodes.V_KEY,
+
+  'INTERACT_TARGET': KeyboardCodes.SPACE_KEY
 }
 
 // Sets minimum sensitivity of joystick inputs (currently not used)
@@ -113,7 +121,7 @@ AFRAME.registerComponent('vieweractions', {
     // Enable/disable features
     enabled:           { default: false },
     // Denotes if entity is the camera rig
-    isCameraRig:	   { default: false },
+    isCameraRig:     { default: false },
     // Denotes if controllable or only focusable
     isControllable:    { default: true },
     // Debugging
@@ -121,7 +129,7 @@ AFRAME.registerComponent('vieweractions', {
     // Rotation sensitivity
     rotationSensitivity:  { default: 2.0 },
     // Movement speed
-    speed: 			{ default: 0.3 }
+    speed:      { default: 0.3 }
   },
 
   /*******************************************************************
@@ -141,34 +149,37 @@ AFRAME.registerComponent('vieweractions', {
     this.controllingTarget = false;
     this.prevTargetControlPressed = false;
     this.prevTargetControlChildPressed = false;
+    this.prevTargetInteractPressed = false;
     this.currTarget = null;
 
     // Rotation
     const rotation = this.el.object3D.rotation;
-    this.pitch = new THREE.Object3D();
-    this.pitch.rotation.x = THREE.Math.degToRad(rotation.x);
-    this.yaw = new THREE.Object3D();
+    this.pitch = new AFRAME.THREE.Object3D();
+    this.pitch.rotation.x = AFRAME.THREE.Math.degToRad(rotation.x);
+    this.yaw = new AFRAME.THREE.Object3D();
     this.yaw.position.y = 10;
-    this.yaw.rotation.y = THREE.Math.degToRad(rotation.y);
+    this.yaw.rotation.y = AFRAME.THREE.Math.degToRad(rotation.y);
     this.yaw.add(this.pitch);
+    this.worldYawAxis = new AFRAME.THREE.Vector3(0,1,0);
 
     //useful incase visual feedback of targeted object is change to material
     //this.currentMat = null;
 
     // If this entity is the camera than use as the master for exchanging control between entities and construction of control tree
     if(this.data.isCameraRig) {
-    	this.controlTree = [];
-    	this.treeTracker = [0];
+      this.controlTree = [];
+      this.treeTracker = [0];
 
       // Sparse array to track currently pressed keys
       this.keyPresses = {};
 
       // Function to parse initial scene structure when loaded to create starting control tree
-    	this.constructControlTree = function() {
+      this.constructControlTree = function() {
         document.querySelector('[camera]').removeAttribute('wasd-controls');
+        document.querySelector('[camera]').removeAttribute('look-controls');
 
-    		that.parseChildrenForControlTree(that.el.sceneEl, that.controlTree);
-			  console.log(that.controlTree);
+        that.parseChildrenForControlTree(that.el.sceneEl, that.controlTree);
+        console.log(that.controlTree);
 
         // Start listening for new controllable entities that get added at runtime to add to control tree
         that.el.sceneEl.addEventListener("newActionComponent", that.callAppendToControlTree);
@@ -190,29 +201,30 @@ AFRAME.registerComponent('vieweractions', {
 
       // Support method to act as callback function and call append function with error check
       this.callAppendToControlTree = function(e) {
+        console.log("appending new to tree");
         if(!that.appendToControlTree(e.detail.newEl, that.el.sceneEl, that.controlTree)) {
           console.log("control tree append update failed");
         }
       };
 
       // Recursively find which entity the newly added entity is a child of and add to that branch in the control tree
-    	this.appendToControlTree = function(newEl, root, controlTreeBranch) {
-    		var entParent = newEl.parentElement;
+      this.appendToControlTree = function(newEl, root, controlTreeBranch) {
+        var entParent = newEl.parentElement;
         // New entity is a child of the current node, add to this branch
-    		if(root.isEqualNode(entParent)) {
-    			controlTreeBranch.push({entity: newEl, children: []});
-    			return true;
-    		} else {
-    			var i = 0;
-    			var posFound = false;
+        if(root.isEqualNode(entParent)) {
+          controlTreeBranch.push({entity: newEl, children: []});
+          return true;
+        } else {
+          var i = 0;
+          var posFound = false;
           // Iterate through children of current entity to check if new entity is a subchild
-    			while(i < controlTreeBranch.length && !posFound) {
-    				posFound = that.appendToControlTree(newEl, controlTreeBranch[i].entity, controlTreeBranch[i].children);
-    				i += 1;
-    			}
-    			return posFound;
-    		}
-    	};
+          while(i < controlTreeBranch.length && !posFound) {
+            posFound = that.appendToControlTree(newEl, controlTreeBranch[i].entity, controlTreeBranch[i].children);
+            i += 1;
+          }
+          return posFound;
+        }
+      };
 
       this.callRemoveFromControlTree = function(e) {
         if(!that.removeFromControlTree(e.detail.remEl, that.controlTree)) {
@@ -247,11 +259,11 @@ AFRAME.registerComponent('vieweractions', {
       document.addEventListener("keyup", this.trackKeyUp);
 
       // Add event listener to construct control tree once entire initial scene is loaded
-    	this.el.sceneEl.addEventListener("loaded", this.constructControlTree);
+      this.el.sceneEl.addEventListener("loaded", this.constructControlTree);
     } 
     else {
       // If controllable entity is not the camera rig than emit an event incase this component was added after initial scene loading
-    	this.el.sceneEl.emit("newActionComponent", {newEl: this.el});
+      this.el.sceneEl.emit("newActionComponent", {newEl: this.el});
     }
 
     scene.addBehavior(this);
@@ -269,12 +281,13 @@ AFRAME.registerComponent('vieweractions', {
   tick: function (t, dt) {
     //this.updateButtonState();
     if(this.data.isCameraRig) {
-    	this.updateTargetControl();
-    	this.updateTargetControlChild();
+      this.updateTargetControl();
+      this.updateTargetControlChild();
+      this.updateTargetInteract();
     }
     if(this.data.enabled) {
-    	this.updateRotation(dt);
-    	this.updateVelocityDelta(dt);
+      this.updateRotation(dt);
+      this.updateVelocityDelta(dt);
     }
   },
 
@@ -283,26 +296,28 @@ AFRAME.registerComponent('vieweractions', {
    * Generally undoes all modifications to the entity.
    */
   remove: function () { 
-  	if(this.data.isCameraRig) {
-  		this.el.sceneEl.removeEventListener("controllableTarget", this.controlRelinquished);
+    if(this.data.isCameraRig) {
+      this.el.sceneEl.removeEventListener("controllableTarget", this.controlRelinquished);
       this.el.sceneEl.removeEventListener("loaded", this.constructControlTree);
       this.el.sceneEl.removeEventListener("newActionComponent", this.callAppendToControlTree);
       this.el.sceneEl.removeEventListener("removeActionComponent", this.callRemoveFromControlTree);
-  	}
-  	else {
+    }
+    else {
       this.el.sceneEl.emit("removeActionComponent", {remEl: this.el});
-  	}
+    }
   },
 
   /**
    * Used to establish this entity as being currently controlled, modify this function for user feedback
    */
   setFocus: function(cRef) {
-  	if(this.data.isControllable) {
-  		this.data.enabled = true;
-  	}
+    if(this.data.isControllable) {
+      this.data.enabled = true;
+      cRef.components.vieweractions.data.enabled = false;
+    }
     this.cameraRigRef = cRef;
-  	//this.el.setAttribute("light", {"type": "point", "distance" : 5, "color": "blue" })
+    this.el.emit('raycaster-intersected');
+    //this.el.setAttribute("light", {"type": "point", "distance" : 5, "color": "blue" })
     //this.currentMat = this.el.getAttribute("material");
     //this.el.setAttribute("material", "shader: flat");
   },
@@ -311,8 +326,10 @@ AFRAME.registerComponent('vieweractions', {
    * Used to remove control from this entity, modify this function to undo anything from the setFocus function for user feedback
    */
   removeFocus: function() {
-  	this.data.enabled = false;
-  	//this.el.removeAttribute("light");
+    this.data.enabled = false;
+    this.cameraRigRef.components.vieweractions.data.enabled = true;
+    this.el.emit('raycaster-intersected-cleared');
+    //this.el.removeAttribute("light");
     //this.el.setAttribute("material", this.currentMat);
   },
 
@@ -331,13 +348,13 @@ AFRAME.registerComponent('vieweractions', {
   },
 
   updateVelocityDelta: function (dt) {
-  	if (!this.isVelocityActive()) return;
+    if (!this.isVelocityActive()) return;
 
-  	const yaw = this.yaw;
+    const yaw = this.yaw;
     const pitch = this.pitch;
-  	const data = this.data;
+    const data = this.data;
 
-    const dVelocity = new THREE.Vector3();
+    const dVelocity = new AFRAME.THREE.Vector3();
 
     //retrieve current inputs for each directional control
     let inputX = this.getAction("MOVE_LEFT") ? -1 : (this.getAction("MOVE_RIGHT") ? 1 : 0);
@@ -384,21 +401,21 @@ AFRAME.registerComponent('vieweractions', {
 
     var vertState = 0;
     if(this.getAction("LOOK_UP")) {
-    	vertState = -1;
+      vertState = -1;
     } else if (this.getAction("LOOK_DOWN")) {
-    	vertState = 1;
+      vertState = 1;
     }
 
     var horzState = 0;
     if(this.getAction("LOOK_RIGHT")) {
-    	horzState = 1;
+      horzState = 1;
     } else if (this.getAction("LOOK_LEFT")) {
-    	horzState = -1;
+      horzState = -1;
     }
 
 
-    const lookVector = new THREE.Vector2(horzState, vertState);
-	//const lookVector = this.getJoystick(1);
+    const lookVector = new AFRAME.THREE.Vector2(horzState, vertState);
+  //const lookVector = this.getJoystick(1);
 
     if (Math.abs(lookVector.x) <= JOYSTICK_EPS) lookVector.x = 0;
     if (Math.abs(lookVector.y) <= JOYSTICK_EPS) lookVector.y = 0;
@@ -406,8 +423,39 @@ AFRAME.registerComponent('vieweractions', {
     lookVector.multiplyScalar(data.rotationSensitivity * dt / 1000);
     yaw.rotation.y -= lookVector.x;
     pitch.rotation.x -= lookVector.y;
-    pitch.rotation.x = Math.max(- Math.PI / 2, Math.min(Math.PI / 2, pitch.rotation.x));
-    this.el.object3D.rotation.set(pitch.rotation.x, yaw.rotation.y, 0);
+    pitch.rotation.x = Math.max(- Math.PI / 6, Math.min(Math.PI / 6, pitch.rotation.x));
+
+    //Threshold pitch rotation based on heading
+    let cameraRigHeading = new AFRAME.THREE.Vector3();
+    this.el.object3D.getWorldDirection(cameraRigHeading);
+    let horizonOffset = cameraRigHeading.angleTo(this.worldYawAxis);
+    if(this.data.isCameraRig) {
+      lookVector.y = horizonOffset <= (Math.PI/3) && lookVector.y > 0 ? 0 : lookVector.y;
+      lookVector.y = horizonOffset >=  (2*Math.PI/3) && lookVector.y < 0 ? 0 : lookVector.y;
+    }
+
+    //Old bounds checks
+    //lookVector.y = pitch.rotation.x <= -1 * Math.PI / 6 ? 0 : lookVector.y;
+    //lookVector.y = pitch.rotation.x >= Math.PI / 6 ? 0 : lookVector.y;
+
+    // Rotate yaw in world space
+    if(lookVector.x != 0) {    
+      this.el.object3D.rotateOnWorldAxis(this.worldYawAxis, -1 * lookVector.x);
+    }
+    
+    // Rotate pitch relative to current heading
+    if(lookVector.y != 0) {
+      let pitchAxis = new AFRAME.THREE.Vector3();
+      //this.el.object3D.getWorldDirection(pitchAxis);
+      if(this.data.isCameraRig) {
+        document.querySelector('[camera]').object3D.getWorldDirection(pitchAxis);
+      } else {
+        this.el.object3D.getWorldDirection(pitchAxis);
+      }
+      pitchAxis.projectOnPlane(this.worldYawAxis);
+      pitchAxis.applyAxisAngle(this.worldYawAxis, -Math.PI/2);
+      this.el.object3D.rotateOnWorldAxis(pitchAxis.normalize(), lookVector.y);
+    }
 
   },
 
@@ -418,95 +466,106 @@ AFRAME.registerComponent('vieweractions', {
 
   // Checks for input to change current target at same level of control tree
   updateTargetControl: function() {
-  	//if(this.isConnected()) {
-  		//if currently controlling camera, switch to first entity in control tree
-	  	if(!this.prevTargetControlPressed && (this.getAction("CONTROL_TARGET")) && !this.controllingTarget) {
-		  	this.prevTargetControlPressed = true;
-		  	//make sure there are objects besides the camera to control
-	  		if(this.controlTree.length > 0) {
-	  			let targetEntity = this.controlTree[this.treeTracker[0]];
-		  		for(var i = 1; i < this.treeTracker.length; i++) {
-		  			targetEntity = targetEntity.children[this.treeTracker[i]];
-		  		}
-		  		//targetEntity.entity.components.vieweractions.data.enabled = true;
-		  		this.currTarget = targetEntity;
-		  		targetEntity.entity.components.vieweractions.setFocus(this.el);
-		  		this.controllingTarget = true;
-		  		//disable control on camera
-		  		this.data.enabled = false;
-	  		}
-	  	}
-	  	//switch control from one entity in control tree to next at same level
-	  	else if (!this.prevTargetControlPressed && (this.getAction("CONTROL_TARGET"))  && this.controllingTarget) {
-	  		//remove control from previous controlled entity
-	  		if(this.currTarget) {
-	  			this.currTarget.entity.components.vieweractions.removeFocus();
-	  		}
-	  		this.prevTargetControlPressed = true;
+    //if(this.isConnected()) {
+      //if currently controlling camera, switch to first entity in control tree
+      if(!this.prevTargetControlPressed && (this.getAction("CONTROL_TARGET")) && !this.controllingTarget) {
+        this.prevTargetControlPressed = true;
+        //make sure there are objects besides the camera to control
+        if(this.controlTree.length > 0) {
+          let targetEntity = this.controlTree[this.treeTracker[0]];
+          for(var i = 1; i < this.treeTracker.length; i++) {
+            targetEntity = targetEntity.children[this.treeTracker[i]];
+          }
+          //targetEntity.entity.components.vieweractions.data.enabled = true;
+          this.currTarget = targetEntity;
+          targetEntity.entity.components.vieweractions.setFocus(this.el);
+          this.controllingTarget = true;
+          //disable control on camera
+          //this.data.enabled = false;
+        }
+      }
+      //switch control from one entity in control tree to next at same level
+      else if (!this.prevTargetControlPressed && (this.getAction("CONTROL_TARGET"))  && this.controllingTarget) {
+        //remove control from previous controlled entity
+        if(this.currTarget) {
+          this.currTarget.entity.components.vieweractions.removeFocus();
+        }
+        this.prevTargetControlPressed = true;
 
-	  		//if at top level of control tree, iterate differently in case of end of tree
-	  		if(this.treeTracker.length == 1) {
-	  			var nextInd = this.treeTracker[0] + 1;
-	  			if(nextInd >= this.controlTree.length) {
-	  				this.controllingTarget = false;
-	  				this.data.enabled = true;
-	  				this.treeTracker[0] = 0;
-	  			} else {
-	  				this.treeTracker[0] = nextInd;
-	  				this.currTarget = this.controlTree[this.treeTracker[0]];
-	  				//targetEntity.entity.components.vieweractions.data.enabled = true;
-	  				this.currTarget.entity.components.vieweractions.setFocus(this.el);
-	  			}
-	  		}
-			//iterating through some lower level of control tree 
-	  		else {
-	  			let targetEntity = this.controlTree[this.treeTracker[0]];
-		  		for(var i = 1; i < this.treeTracker.length - 1; i++) {
-		  			targetEntity = targetEntity.children[this.treeTracker[i]];
-		  		}
-		  		var nextInd = this.treeTracker[this.treeTracker.length - 1] + 1;
-		  		if(nextInd >= targetEntity.children.length) {
-		  			this.treeTracker.pop();
-		  		} else {
-		  			targetEntity = targetEntity.children[nextInd];
-		  			this.treeTracker[this.treeTracker.length - 1] = nextInd;
-		  		}
-		  		this.currTarget = targetEntity;
-		  		this.currTarget.entity.components.vieweractions.setFocus(this.el);
-	  		}
-	  	}
-	  	// Detect end of input, prevents multiple control transfers in a single input
-	  	else if(this.prevTargetControlPressed && !(this.getAction("CONTROL_TARGET"))) {
-	  		this.prevTargetControlPressed = false;
-	  	}
-  	//}
+        //if at top level of control tree, iterate differently in case of end of tree
+        if(this.treeTracker.length == 1) {
+          var nextInd = this.treeTracker[0] + 1;
+          if(nextInd >= this.controlTree.length) {
+            this.controllingTarget = false;
+            this.data.enabled = true;
+            this.treeTracker[0] = 0;
+          } else {
+            this.treeTracker[0] = nextInd;
+            this.currTarget = this.controlTree[this.treeTracker[0]];
+            //targetEntity.entity.components.vieweractions.data.enabled = true;
+            this.currTarget.entity.components.vieweractions.setFocus(this.el);
+          }
+        }
+      //iterating through some lower level of control tree 
+        else {
+          let targetEntity = this.controlTree[this.treeTracker[0]];
+          for(var i = 1; i < this.treeTracker.length - 1; i++) {
+            targetEntity = targetEntity.children[this.treeTracker[i]];
+          }
+          var nextInd = this.treeTracker[this.treeTracker.length - 1] + 1;
+          if(nextInd >= targetEntity.children.length) {
+            this.treeTracker.pop();
+          } else {
+            targetEntity = targetEntity.children[nextInd];
+            this.treeTracker[this.treeTracker.length - 1] = nextInd;
+          }
+          this.currTarget = targetEntity;
+          this.currTarget.entity.components.vieweractions.setFocus(this.el);
+        }
+      }
+      // Detect end of input, prevents multiple control transfers in a single input
+      else if(this.prevTargetControlPressed && !(this.getAction("CONTROL_TARGET"))) {
+        this.prevTargetControlPressed = false;
+      }
+    //}
   },
 
   // Checks for input to change control to first child entity of currently focused entity
   updateTargetControlChild: function() {
-	//if(this.isConnected()) {
-		if(!this.prevTargetControlChildPressed && (this.getAction("CONTROL_TARGET_CHILD")) && this.controllingTarget) {
-			this.prevTargetControlChildPressed = true;
-			let targetEntity = this.controlTree[this.treeTracker[0]];
-	  		for(var i = 1; i < this.treeTracker.length - 1; i++) {
-	  			targetEntity = targetEntity.children[this.treeTracker[i]];
-	  		}
-	  		if(targetEntity.children.length > 0) {
-	  			targetEntity = targetEntity.children[0];
-	  			this.treeTracker.push(0);
+  //if(this.isConnected()) {
+    if(!this.prevTargetControlChildPressed && (this.getAction("CONTROL_TARGET_CHILD")) && this.controllingTarget) {
+      this.prevTargetControlChildPressed = true;
+      let targetEntity = this.controlTree[this.treeTracker[0]];
+        for(var i = 1; i < this.treeTracker.length - 1; i++) {
+          targetEntity = targetEntity.children[this.treeTracker[i]];
+        }
+        if(targetEntity.children.length > 0) {
+          targetEntity = targetEntity.children[0];
+          this.treeTracker.push(0);
 
-	  			if(this.currTarget) {
-	  				this.currTarget.entity.components.vieweractions.removeFocus();
-	  			}
-	  			this.currTarget = targetEntity;
-	  			targetEntity.entity.components.vieweractions.setFocus(this.el);
-	  		}
+          if(this.currTarget) {
+            this.currTarget.entity.components.vieweractions.removeFocus();
+          }
+          this.currTarget = targetEntity;
+          targetEntity.entity.components.vieweractions.setFocus(this.el);
+        }
 
-		}
-		else if(this.prevTargetControlChildPressed && !(this.getAction("CONTROL_TARGET_CHILD"))) {
-	  		this.prevTargetControlChildPressed = false;
-	  	}
-	//}
+    }
+    else if(this.prevTargetControlChildPressed && !(this.getAction("CONTROL_TARGET_CHILD"))) {
+        this.prevTargetControlChildPressed = false;
+      }
+  //}
+  },
+
+  updateTargetInteract: function() {
+    if(!this.prevTargetInteractPressed && (this.getAction("INTERACT_TARGET")) && this.controllingTarget) {
+      this.prevTargetInteractPressed = true;
+      this.currTarget.entity.emit("click");
+    }
+
+    else if(this.prevTargetInteractPressed && !(this.getAction("INTERACT_TARGET"))) {
+      this.prevTargetInteractPressed = false;
+    }
   },
 
   switchToCameraControl: function() {
@@ -522,14 +581,14 @@ AFRAME.registerComponent('vieweractions', {
   /*******************************************************************
    * Button events
    */
-
+   /*
   updateButtonState: function () {
     const gamepad = this.getGamepad();
     if (this.data.enabled && gamepad) {
 
       // Fire DOM events for button state changes.
       for (var i = 0; i < gamepad.buttons.length; i++) {
-      	// Start tracking new pressed button
+        // Start tracking new pressed button
         if (gamepad.buttons[i].pressed && !this.buttons[i]) {
           this.emit(new GamepadButtonEvent('gamepadbuttondown', i, gamepad.buttons[i]));
         } 
@@ -557,7 +616,7 @@ AFRAME.registerComponent('vieweractions', {
       new GamepadButtonEvent(event.type, event.index, event)
     );
   },
-
+  */
 
 
   /*******************************************************************
@@ -600,29 +659,29 @@ AFRAME.registerComponent('vieweractions', {
   },
 
   /**
-   * Returns the state of the given joystick (0 or 1) as a THREE.Vector2.
+   * Returns the state of the given joystick (0 or 1) as a AFRAME.THREE.Vector2.
    * @param  {number} id The joystick (0, 1) for which to find state.
-   * @return {THREE.Vector2}
+   * @return {AFRAME.THREE.Vector2}
    */
   getJoystick: function (index) {
     const gamepad = this.getGamepad();
     switch (index) {
-      case 0: return new THREE.Vector2(gamepad.axes[0], gamepad.axes[1]);
-      case 1: return new THREE.Vector2(gamepad.axes[2], gamepad.axes[3]);
+      case 0: return new AFRAME.THREE.Vector2(gamepad.axes[0], gamepad.axes[1]);
+      case 1: return new AFRAME.THREE.Vector2(gamepad.axes[2], gamepad.axes[3]);
       default: throw new Error('Unexpected joystick index "%d".', index);
     }
   },
 
   /**
-   * Returns the state of the dpad as a THREE.Vector2.
-   * @return {THREE.Vector2}
+   * Returns the state of the dpad as a AFRAME.THREE.Vector2.
+   * @return {AFRAME.THREE.Vector2}
    */
   getDpad: function () {
     const gamepad = this.getGamepad();
     if (!gamepad.buttons[GamepadButton.DPAD_RIGHT]) {
-      return new THREE.Vector2();
+      return new AFRAME.THREE.Vector2();
     }
-    return new THREE.Vector2(
+    return new AFRAME.THREE.Vector2(
       (gamepad.buttons[GamepadButton.DPAD_RIGHT].pressed ? 1 : 0)
       + (gamepad.buttons[GamepadButton.DPAD_LEFT].pressed ? -1 : 0),
       (gamepad.buttons[GamepadButton.DPAD_UP].pressed ? -1 : 0)
